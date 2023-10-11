@@ -1,43 +1,28 @@
 #!/usr/bin/env python3
 
-from random import randint
-
-from faker import Faker
-
 from app import app
-from models import db, Article, User
+from models import db, Plant
 
-fake = Faker()
 
 with app.app_context():
 
-    print("Deleting all records...")
-    Article.query.delete()
-    User.query.delete()
+    Plant.query.delete()
 
-    fake = Faker()
+    aloe = Plant(
+        id=1,
+        name="Aloe",
+        image="./images/aloe.jpg",
+        price=11.50,
+        is_in_stock=True,
+    )
 
-    print("Creating users...")
-    users = [User(name=fake.name()) for i in range(25)]
-    db.session.add_all(users)
+    zz_plant = Plant(
+        id=2,
+        name="ZZ Plant",
+        image="./images/zz-plant.jpg",
+        price=25.98,
+        is_in_stock=False,
+    )
 
-    print("Creating articles...")
-    articles = []
-    for i in range(100):
-        content = fake.paragraph(nb_sentences=8)
-        preview = content[:25] + '...'
-        
-        article = Article(
-            author=fake.name(),
-            title=fake.sentence(),
-            content=content,
-            preview=preview,
-            minutes_to_read=randint(1,20),
-        )
-
-        articles.append(article)
-
-    db.session.add_all(articles)
-    
+    db.session.add_all([aloe, zz_plant])
     db.session.commit()
-    print("Complete.")

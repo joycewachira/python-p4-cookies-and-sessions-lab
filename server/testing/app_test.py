@@ -1,57 +1,59 @@
-import flask
+import json
 
 from app import app
-app.secret_key = b'a\xdb\xd2\x13\x93\xc1\xe9\x97\xef2\xe3\x004U\xd1Z'
+from models import db, Plant
 
-class TestApp:
-    '''Flask API in app.py'''
+class TestPlant:
+    '''Flask application in app.py'''
 
-    def test_show_articles_route(self):
-        '''shows an article "/article/<id>".'''
+    def test_plant_by_id_get_route(self):
+        '''has a resource available at "/plants/<int:id>".'''
+        response = app.test_client().get('/plants/1')
+        assert(response.status_code == 200)
+
+    def test_plant_by_id_get_route_returns_one_plant(self):
+        '''returns JSON representing one Plant object at "/plants/<int:id>".'''
+        response = app.test_client().get('/plants/1')
+        data = json.loads(response.data.decode())
+
+        assert(type(data) == dict)
+        assert(data["id"])
+        assert(data["name"])
+
+    def test_plant_by_id_patch_route_updates_is_in_stock(self):
+        '''returns JSON representing updated Plant object with "is_in_stock" = False at "/plants/<int:id>".'''
         with app.app_context():
-            response = app.test_client().get('/articles/1')
-            response_json = response.get_json()
-
-            assert(response_json.get('author'))
-            assert(response_json.get('title'))
-            assert(response_json.get('content'))
-            assert(response_json.get('preview'))
-            assert(response_json.get('minutes_to_read'))
-            assert(response_json.get('date'))
-
-    def test_increments_session_page_views(self):
-        '''increases session['page_views'] by 1 after every viewed article.'''
-        with app.test_client() as client:
-
-            client.get('/articles/1')
-            assert(flask.session.get('page_views') == 1)
-
-            client.get('/articles/2')
-            assert(flask.session.get('page_views') == 2)
-
-            client.get('/articles/3')
-            assert(flask.session.get('page_views') == 3)
-
-            client.get('/articles/3')
-            assert(flask.session.get('page_views') == 4)
-
-    def test_limits_three_articles(self):
-        '''returns a 401 with an error message after 3 viewed articles.'''
-        with app.app_context():
-
-            client = app.test_client()
-
-            response = client.get('/articles/1')
-            assert(response.status_code == 200)
+            plant_1 = Plant.query.filter_by(id=1).first()
+            plant_1.is_in_stock = True
+            db.session.add(plant_1)
+            db.session.commit()
             
-            response = client.get('/articles/2')
-            assert(response.status_code == 200)
+        response = app.test_client().patch(
+            '/plants/1',
+            json = {
+                "is_in_stock": False,
+            }
+        )
+        data = json.loads(response.data.decode())
 
-            response = client.get('/articles/3')
-            assert(response.status_code == 200)
+        assert(type(data) == dict)
+        assert(data["id"])
+        assert(data["is_in_stock"] == False)
 
-            response = client.get('/articles/4')
-            assert(response.status_code == 401)
-            assert(response.get_json().get('message') == 
-                'Maximum pageview limit reached')
+    def test_plant_by_id_delete_route_deletes_plant(self):
+        '''returns JSON representing updated Plant object at "/plants/<int:id>".'''
+        with app.app_context():
+            lo = Plant(
+                name="Live Oak",
+                image="https://www.nwf.org/-/media/NEW-WEBSITE/Shared-Folder/Wildlife/Plants-and-Fungi/plant_southern-live-oak_600x300.ashx",
+                price=250.00,
+                is_in_stock=False,
+            )
 
+            db.session.add(lo)
+            db.session.commit()
+            
+            response = app.test_client().delete(f'/plants/{lo.id}')
+            data = response.data.decode()
+
+            assert(not data)

@@ -1,34 +1,80 @@
 #!/usr/bin/env python3
 
-from flask import Flask, make_response, jsonify, session
+from flask import Flask, jsonify, request, make_response
 from flask_migrate import Migrate
+from flask_restful import Api, Resource
 
-from models import db, Article, User
+from models import db, Plant
 
 app = Flask(__name__)
-app.secret_key = b'Y\xf1Xz\x00\xad|eQ\x80t \xca\x1a\x10K'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///plants.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.json.compact = False
 
 migrate = Migrate(app, db)
-
 db.init_app(app)
 
-@app.route('/clear')
-def clear_session():
-    session['page_views'] = 0
-    return {'message': '200: Successfully cleared session data.'}, 200
+api = Api(app)
 
-@app.route('/articles')
-def index_articles():
 
-    pass
+class Plants(Resource):
 
-@app.route('/articles/<int:id>')
-def show_article(id):
+    def get(self):
+        plants = [plant.to_dict() for plant in Plant.query.all()]
+        return make_response(jsonify(plants), 200)
 
-    pass
+    def post(self):
+        data = request.get_json()
+
+        new_plant = Plant(
+            name=data['name'],
+            image=data['image'],
+            price=data['price'],
+        )
+
+        db.session.add(new_plant)
+        db.session.commit()
+
+        return make_response(new_plant.to_dict(), 201)
+
+
+api.add_resource(Plants, '/plants')
+
+
+class PlantByID(Resource):
+
+    def get(self, id):
+        plant = Plant.query.filter_by(id=id).first().to_dict()
+        return make_response(jsonify(plant), 200)
+    
+    def patch(self,id):
+        patch_plant =Plant.query.get(id)
+
+        for atr in request.form:
+            setattr(patch_plant,atr,request.form.get(atr))
+        db.session.add(Plant)
+        db.session.commit()
+
+        response =make_response(patch_plant.to_dict(),200)
+        response.headers["Content-Type"]="application/json"
+        return response
+    
+
+    def delete(self,id):
+        delete_plant =Plant.query.get(id)
+        db.session.delete(delete_plant)
+        db.session.commit()
+        message ={"item's status ":"Deleted"}
+        response =make_response(message,200)
+        return response
+
+            
+
+
+
+
+api.add_resource(PlantByID, '/plants/<int:id>')
+
 
 if __name__ == '__main__':
-    app.run(port=5555)
+    app.run(port=5555, debug=True)
